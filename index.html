@@ -1,122 +1,188 @@
-<script>
-  const game = document.getElementById('game');
-  const ringSize = document.getElementById('ringSize');
-  const turnInfo = document.getElementById('turnInfo');
-
-  let currentPlayer = 1;
-  let gameOver = false;
-  const boardState = Array.from({ length: 9 }, () => ({
-    small: null,
-    medium: null,
-    large: null
-  }));
-
-  const winPatterns = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
-    [0, 4, 8], [2, 4, 6]             // Diagonals
-  ];
-
-  function renderBoard() {
-    game.innerHTML = '';
-    boardState.forEach((cell, i) => {
-      const div = document.createElement('div');
-      div.className = 'cell';
-      div.dataset.index = i;
-
-      ['large', 'medium', 'small'].forEach(size => {
-        if (cell[size]) {
-          const ring = document.createElement('div');
-          ring.className = `ring ${size} player${cell[size]}`;
-          div.appendChild(ring);
-        }
-      });
-
-      div.onclick = () => placeRing(i);
-      game.appendChild(div);
-    });
-  }
-
-  function placeRing(index) {
-    if (gameOver) return;
-    const size = ringSize.value;
-    const cell = boardState[index];
-    if (cell[size] !== null) return alert("That size already exists here!");
-
-    cell[size] = currentPlayer;
-    renderBoard();
-
-    if (checkWin()) {
-      gameOver = true;
-      turnInfo.innerText = `🎉 Player ${currentPlayer} wins!`;
-      return;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Otrio Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f2f2f2;
     }
 
-    // Switch turn
-    currentPlayer = currentPlayer === 1 ? 2 : 1;
-    turnInfo.innerText = `Current Turn: Player ${currentPlayer} (${currentPlayer === 1 ? 'Red' : 'Blue'})`;
-  }
+    h1 {
+      margin-top: 20px;
+    }
 
-  function checkWin() {
-    // 1. Same-size in a line
-    for (let size of ['small', 'medium', 'large']) {
-      for (let pattern of winPatterns) {
-        const [a, b, c] = pattern;
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 120px);
+      grid-template-rows: repeat(3, 120px);
+      gap: 10px;
+      justify-content: center;
+      margin: 20px auto;
+    }
+
+    .cell {
+      background-color: white;
+      border: 2px solid #444;
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .small {
+      width: 30px;
+      height: 30px;
+      top: 50%;
+      left: 50%;
+    }
+
+    .medium {
+      width: 50px;
+      height: 50px;
+      top: 50%;
+      left: 50%;
+    }
+
+    .large {
+      width: 80px;
+      height: 80px;
+      top: 50%;
+      left: 50%;
+    }
+
+    .player1 { border: 5px solid red; }
+    .player2 { border: 5px solid blue; }
+
+    .controls {
+      margin-bottom: 20px;
+    }
+
+    .ring-btn {
+      margin: 0 5px;
+      padding: 5px 10px;
+      font-weight: bold;
+    }
+
+    #winner {
+      font-size: 1.5em;
+      color: green;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Otrio Game</h1>
+
+  <div class="controls">
+    <span>Current Player: <span id="playerTurn">1 (Red)</span></span><br><br>
+    <button class="ring-btn" onclick="selectRing('small')">Small</button>
+    <button class="ring-btn" onclick="selectRing('medium')">Medium</button>
+    <button class="ring-btn" onclick="selectRing('large')">Large</button>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <div id="winner"></div>
+
+  <script>
+    const board = document.getElementById('board');
+    const playerTurnDisplay = document.getElementById('playerTurn');
+    const winnerDisplay = document.getElementById('winner');
+
+    let currentPlayer = 1;
+    let selectedRingSize = 'small';
+
+    const grid = Array(9).fill(null).map(() => ({ small: null, medium: null, large: null }));
+
+    function createBoard() {
+      board.innerHTML = '';
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.dataset.index = i;
+        cell.addEventListener('click', handleMove);
+        board.appendChild(cell);
+      }
+    }
+
+    function selectRing(size) {
+      selectedRingSize = size;
+    }
+
+    function handleMove(e) {
+      const index = +e.currentTarget.dataset.index;
+      const cell = grid[index];
+
+      if (cell[selectedRingSize]) return; // can't place over existing ring of same size
+
+      cell[selectedRingSize] = currentPlayer;
+      drawRing(e.currentTarget, selectedRingSize, currentPlayer);
+      if (checkWin()) {
+        winnerDisplay.textContent = `🎉 Player ${currentPlayer} wins!`;
+        board.querySelectorAll('.cell').forEach(c => c.removeEventListener('click', handleMove));
+        return;
+      }
+
+      currentPlayer = currentPlayer === 1 ? 2 : 1;
+      playerTurnDisplay.textContent = `${currentPlayer} (${currentPlayer === 1 ? 'Red' : 'Blue'})`;
+    }
+
+    function drawRing(cell, size, player) {
+      const ring = document.createElement('div');
+      ring.classList.add('ring', size, `player${player}`);
+      cell.appendChild(ring);
+    }
+
+    function checkWin() {
+      const lines = [
+        [0,1,2],[3,4,5],[6,7,8], // rows
+        [0,3,6],[1,4,7],[2,5,8], // cols
+        [0,4,8],[2,4,6]          // diags
+      ];
+
+      // Same-size in a row
+      for (const size of ['small', 'medium', 'large']) {
+        for (const [a,b,c] of lines) {
+          if (grid[a][size] && grid[a][size] === grid[b][size] && grid[b][size] === grid[c][size]) {
+            return true;
+          }
+        }
+      }
+
+      // Nesting in one cell
+      for (const cell of grid) {
+        if (cell.small && cell.medium && cell.large &&
+            cell.small === cell.medium && cell.medium === cell.large) {
+          return true;
+        }
+      }
+
+      // Ascending or descending across line
+      for (const [a,b,c] of lines) {
+        const asc = ['small','medium','large'];
+        const desc = ['large','medium','small'];
         if (
-          boardState[a][size] === currentPlayer &&
-          boardState[b][size] === currentPlayer &&
-          boardState[c][size] === currentPlayer
+          asc.every((size, i) => grid[[a,b,c][i]][size] === currentPlayer) ||
+          desc.every((size, i) => grid[[a,b,c][i]][size] === currentPlayer)
         ) {
           return true;
         }
       }
+
+      return false;
     }
 
-    // 2. Size sequence (s, m, l) in a line (all same player)
-    for (let pattern of winPatterns) {
-      const [a, b, c] = pattern;
-      if (
-        boardState[a].small === currentPlayer &&
-        boardState[b].medium === currentPlayer &&
-        boardState[c].large === currentPlayer
-      ) {
-        return true;
-      }
-      if (
-        boardState[a].large === currentPlayer &&
-        boardState[b].medium === currentPlayer &&
-        boardState[c].small === currentPlayer
-      ) {
-        return true;
-      }
-    }
-
-    // 3. Nested full set in one cell
-    for (let i = 0; i < 9; i++) {
-      const cell = boardState[i];
-      if (
-        cell.small === currentPlayer &&
-        cell.medium === currentPlayer &&
-        cell.large === currentPlayer
-      ) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  function resetGame() {
-    for (let cell of boardState) {
-      cell.small = null;
-      cell.medium = null;
-      cell.large = null;
-    }
-    currentPlayer = 1;
-    gameOver = false;
-    renderBoard();
-    turnInfo.innerText = 'Current Turn: Player 1 (Red)';
-  }
-
-  renderBoard();
-</script>
+    createBoard();
+  </script>
+</body>
+</html>
